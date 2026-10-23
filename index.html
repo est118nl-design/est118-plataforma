@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Escolar - EST No. 118</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      body * { visibility: hidden; }
+      #areaImpresion, #areaImpresion * { visibility: visible; }
+      #areaImpresion { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen text-gray-800 antialiased selection:bg-red-800 selection:text-white">
+
+  <div id="app" class="p-3 md:p-6 max-w-6xl mx-auto">
+    <!-- Encabezado Institucional -->
+    <header class="bg-white p-5 rounded-2xl shadow-sm mb-6 border-l-8 border-red-800 flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-4 w-full md:w-3/4 cursor-pointer" onclick="location.reload()">
+        <img id="imgLogoIzqHeader" src="" class="h-20 md:h-24 max-w-[120px] hidden object-contain" alt="Logo Izquierdo">
+        <div>
+          <h1 id="lblEscuelaNombre" class="text-lg md:text-2xl font-extrabold text-gray-800 tracking-tight">Escuela Secundaria Técnica No. 118</h1>
+          <p id="lblEscuelaInfo" class="text-xs md:text-sm text-gray-600 font-medium">"Ignacio De La Llave" | CCT: 19DST0118E | Linares, N.L.</p>
+          <span id="badgeCicloActivo" class="bg-red-100 text-red-800 border border-red-200 text-[11px] font-extrabold px-3 py-0.5 rounded-full inline-block mt-1">Ciclo Escolar: 2026-2027</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <img id="imgLogoDerHeader" src="" class="h-20 md:h-24 max-w-[120px] hidden object-contain" alt="Logo Derecho">
+        <div id="userInfo" class="text-right text-xs font-bold text-gray-700"></div>
+      </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main id="mainContent" class="bg-white p-6 rounded-2xl shadow-sm min-h-[460px] border border-gray-100">
+      <!-- Pantalla de Login -->
+      <div id="loginSection" class="max-w-md mx-auto py-6 space-y-6">
+        <div class="text-center">
+          <h2 class="text-2xl font-bold text-gray-800 tracking-tight">Acceso al Sistema</h2>
+          <p class="text-xs text-gray-500 mt-1">Seleccione un perfil o ingrese credenciales</p>
+        </div>
+
+        <!-- Botones de Acceso Rápido -->
+        <div class="bg-red-50 p-4 rounded-xl border border-red-200 text-center space-y-2">
+          <p class="text-xs font-bold text-red-800 uppercase">Acceso Directo de Prueba:</p>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <button onclick="loginDirecto('admin')" class="bg-red-800 hover:bg-red-900 text-white font-bold py-2 rounded-lg shadow">Directivo / Admin</button>
+            <button onclick="loginDirecto('secretaria')" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 rounded-lg shadow">Eq. Administrativo</button>
+            <button onclick="loginDirecto('trabajosocial')" class="bg-amber-700 hover:bg-amber-800 text-white font-bold py-2 rounded-lg shadow">Trabajo Social</button>
+            <button onclick="loginDirecto('prefecto')" class="bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 rounded-lg shadow">Prefectura</button>
+            <button onclick="loginDirecto('docente1')" class="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 rounded-lg shadow col-span-2">Docente</button>
+          </div>
+        </div>
+
+        <!-- Formulario Manual -->
+        <div class="space-y-4 pt-2">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Usuario / Clave:</label>
+            <input type="text" id="username" value="admin" class="w-full p-3 border border-gray-300 rounded-xl text-sm font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Contraseña:</label>
+            <input type="password" id="password" value="admin" class="w-full p-3 border border-gray-300 rounded-xl text-sm font-medium">
+          </div>
+          <button onclick="handleLoginManual()" class="w-full bg-red-800 hover:bg-red-900 text-white font-bold py-3.5 rounded-xl transition text-sm shadow-md">Iniciar Sesión</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Área Oculta para Impresión / PDF -->
+  <div id="areaImpresion" class="hidden p-8 bg-white text-gray-900"></div>
+
+  <script>
+    let currentUser = null;
+    let cicloActivo = localStorage.getItem('EST118_cicloActivo') || '2026-2027';
+    let ciclosDisponibles = JSON.parse(localStorage.getItem('EST118_ciclosDisponibles')) || ['2025-2026', '2026-2027', '2027-2028'];
+    
+    let dbGruposConfig = JSON.parse(localStorage.getItem('EST118_dbGruposConfig')) || { 
+      '2025-2026': { '1': [], '2': [], '3': [] },
+      '2026-2027': { '1': ['1°A', '1°B'], '2': ['2°A'], '3': ['3°A'] },
+      '2027-2028': { '1': [], '2': [], '3': [] }
+    };
+    
+    let asignaturasPorGrado = JSON.parse(localStorage.getItem('EST118_asignaturasPorGrado')) || { 
+      '1': ['Español I', 'Inglés I', 'Matemáticas I', 'Biología', 'Geografía I', 'Historia I', 'Formación Cívica y Ética I', 'Tecnología I', 'Artes I', 'Educación Física I', 'Tutoría y Educación Socioemocional I'], 
+      '2': ['Español II', 'Inglés II', 'Matemáticas II', 'Física', 'Geografía II', 'Historia II', 'Formación Cívica y Ética II', 'Tecnología II', 'Artes II', 'Educación Física II', 'Tutoría y Educación Socioemocional II'], 
+      '3': ['Español III', 'Inglés III', 'Matemáticas III', 'Química', 'Geografía III', 'Historia III', 'Formación Cívica y Ética III', 'Tecnología III', 'Artes III', 'Educación Física III', 'Tutoría y Educación Socioemocional III'] 
+    };
+
+    let dbCargaDocente = JSON.parse(localStorage.getItem('EST118_dbCargaDocente')) || [];
+    let dbRangosConfig = JSON.parse(localStorage.getItem('EST118_dbRangosConfig')) || { min: 5.0, max: 6.9 };
+    let dbAlumnos = JSON.parse(localStorage.getItem('EST118_dbAlumnos')) || [
+      { id: 1, ciclo: '2026-2027', grado: '1', grupo: 'A', name: 'Juan Pablo Hernández' },
+      { id: 2, ciclo: '2026-2027', grado: '1', grupo: 'A', name: 'María Fernanda Garza' },
+      { id: 3, ciclo: '2026-2027', grado: '2', grupo: 'A', name: 'Carlos Pérez Gómez' }
+    ]; 
+    let dbIncidencias = JSON.parse(localStorage.getItem('EST118_dbIncidencias')) || [];
+    
+    let dbMembrete = JSON.parse(localStorage.getItem('EST118_dbMembrete')) || {
+      nombreEscuela: 'Escuela Secundaria Técnica No. 118',
+      lema: '"Ignacio De La Llave"',
+      cct: '19DST0118E',
+      turno: 'Matutino',
+      zona: '12',
+      sector: '03',
+      ubicacion: 'Linares, N.L.',
+      director: 'Profr. Arturo Alonso',
+      logoIzq: '',
+      logoDer: ''
+    };
+
+    let dbDocentesUsers = JSON.parse(localStorage.getItem('EST118_dbDocentesUsers')) || {
+      'admin': { nombre: 'José Arturo Alonso Cavazos', pass: 'admin', role: 'Directivo' },
+      'secretaria': { nombre: 'Secretaría de Control Escolar', pass: 'secretaria', role: 'Equipo Administrativo' },
+      'trabajosocial': { nombre: 'Departamento de Trabajo Social', pass: 'trabajo', role: 'Trabajo Social' },
+      'prefecto': { nombre: 'Prefectura Escolar', pass: 'prefecto', role: 'Prefecto' },
+      'docente1': { nombre: 'Profesor de Grupo', pass: '12345', role: 'Docente' }
+    };
+
+    function guardarTodoEnMemoria() {
+      localStorage.setItem('EST118_cicloActivo', cicloActivo);
+      localStorage.setItem('EST118_ciclosDisponibles', JSON.stringify(ciclosDisponibles));
+      localStorage.setItem('EST118_dbGruposConfig', JSON.stringify(dbGruposConfig));
+      localStorage.setItem('EST118_asignaturasPorGrado', JSON.stringify(asignaturasPorGrado));
+      localStorage.setItem('EST118_dbCargaDocente', JSON.stringify(dbCargaDocente));
+      localStorage.setItem('EST118_dbRangosConfig', JSON.stringify(dbRangosConfig));
+      localStorage.setItem('EST118_dbAlumnos', JSON.stringify(dbAlumnos));
+      localStorage.setItem('EST118_dbIncidencias', JSON.stringify(dbIncidencias));
+      localStorage.setItem('EST118_dbMembrete', JSON.stringify(dbMembrete));
+      localStorage.setItem('EST118_dbDocentesUsers', JSON.stringify(dbDocentesUsers));
+    }
+
+    function loginDirecto(claveUser) {
+      if (dbDocentesUsers[claveUser]) {
+        const uObj = dbDocentesUsers[claveUser];
+        currentUser = { user: claveUser, name: uObj.nombre, role: uObj.role };
+        document.getElementById('userInfo').innerText = `${currentUser.name}\n(${currentUser.role})`;
+        
+        if (currentUser.role === 'Directivo') {
+          renderPanelDirectivo();
+        } else if (currentUser.role === 'Equipo Administrativo') {
+          renderPanelAdministrativo();
+        } else if (currentUser.role === 'Trabajo Social') {
+          renderPanelTrabajoSocial();
+        } else if (currentUser.role === 'Prefecto') {
+          renderPanelPrefectura();
+        } else {
+          renderPanelDocente();
+        }
+      }
+    }
+
+    function handleLoginManual() {
+      const uInput = document.getElementById('username').value.trim().toLowerCase();
+      const pInput = document.getElementById('password').value.trim().toLowerCase();
+      
+      if (dbDocentesUsers[uInput] && dbDocentesUsers[uInput].pass.toLowerCase() === pInput) {
+        loginDirecto(uInput);
+      } else {
+        alert('⚠️ Usuario o contraseña incorrectos.');
+      }
+    }
+
+    function cargarMembreteEnHeader() {
+      const lblNombre = document.getElementById('lblEscuelaNombre');
+      const lblInfo = document.getElementById('lblEscuelaInfo');
+      const logoIzq = document.getElementById('imgLogoIzqHeader');
+      const logoDer = document.getElementById('imgLogoDerHeader');
+
+      if (lblNombre) lblNombre.innerText = dbMembrete.nombreEscuela;
+      if (lblInfo) lblInfo.innerText = `${dbMembrete.lema} | CCT: ${dbMembrete.cct} | ${dbMembrete.ubicacion}`;
+
+      if (logoIzq) {
+        if (dbMembrete.logoIzq) { logoIzq.src = dbMembrete.logoIzq; logoIzq.classList.remove('hidden'); }
+        else logoIzq.classList.add('hidden');
+      }
+      if (logoDer) {
+        if (dbMembrete.logoDer) { logoDer.src = dbMembrete.logoDer; logoDer.classList.remove('hidden'); }
+        else logoDer.classList.add('hidden');
+      }
+      const badge = document.getElementById('badgeCicloActivo');
+      if (badge) badge.innerText = `Ciclo Escolar: ${cicloActivo}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', cargarMembreteEnHeader);
+
+    function obtenerGruposPorCiclo(ciclo) {
+      let arreglo = [];
+      const cfg = dbGruposConfig[ciclo] || { '1': [], '2': [], '3': [] };
+      ['1', '2', '3'].forEach(g => { if (cfg[g]) arreglo = arreglo.concat(cfg[g]); });
+      return arreglo;
+    }
+
+    // --- PANELS ---
+    function renderPanelAdministrativo() {
+      const main = document.getElementById('mainContent');
+      main.innerHTML = `
+        <div class="space-y-6">
+          <div class="bg-gray-50 p-3 rounded-2xl border flex items-center justify-between">
+            <h2 class="text-xs font-extrabold text-red-800 uppercase">🏫 Módulo de Control Escolar - Equipo Administrativo</h2>
+            <button onclick="logout()" class="px-3.5 py-1.5 font-bold rounded-xl bg-gray-700 text-white text-xs">🚪 Salir</button>
+          </div>
+          ${obtenerHTMLControlEscolar()}
+        </div>
+      `;
+    }
+
+    function renderPanelTrabajoSocial() {
+      const main = document.getElementById('mainContent');
+      main.innerHTML = `
+        <div class="space-y-6">
+          <div class="bg-gray-50 p-3 rounded-2xl border flex items-center justify-between">
+            <h2 class="text-xs font-extrabold text-amber-800 uppercase">🤝 Módulo de Trabajo Social</h2>
+            <button onclick="logout()" class="px-3.5 py-1.5 font-bold rounded-xl bg-gray-700 text-white text-xs">🚪 Salir</button>
+          </div>
+          ${obtenerHTMLTrabajoSocial()}
+        </div>
+      `;
+      actualizarAlumnosTS();
+    }
+
+    function renderPanelPrefectura() {
+      const main = document.getElementById('mainContent');
+      main.innerHTML = `
+        <div class="space-y-6">
+          <div class="bg-gray-50 p-3 rounded-2xl border flex items-center justify-between">
+            <h2 class="text-xs font-extrabold text-blue-800 uppercase">🚨 Módulo de Prefectura - Control de Incidencias</h2>
+            <button onclick="logout()" class="px-3.5 py-1.5 font-bold rounded-xl bg-gray-700 text-white text-xs">🚪 Salir</button>
+          </div>
+          ${obtenerHTMLPrefectura()}
+        </div>
+      `;
+      renderizarListaIncidencias();
+    }
+
+    function renderPanelDirectivo() {
+      const main = document.getElementById('mainContent');
+      main.innerHTML = `
+        <div class="space-y-6">
+          <div class="bg-gray-50 p-3 rounded-2xl border flex flex-wrap items-center justify-between gap-2">
+            <h2 class="text-xs font-extrabold text-red-800 uppercase">⚙️ Panel General Directivo</h2>
+            <div class="flex flex-wrap gap-1.5 text-xs">
+              <button onclick="switchDirectivoTab('tabCE')" id="btnTabCE" class="px-3.5 py-2 font-bold rounded-xl bg-red-800 text-white shadow">🏫 Control Escolar</button>
+              <button onclick="switchDirectivoTab('tabTS')" id="btnTabTS" class="px-3.5 py-2 font-bold rounded-xl bg-gray-200 text-gray-700">🤝 Trabajo Social</button>
+              <button onclick="switchDirectivoTab('tabPref')" id="btnTabPref" class="px-3.5 py-2 font-bold rounded-xl bg-gray-200 text-gray-700">🚨 Prefectura</button>
+              <button onclick="switchDirectivoTab('tabConfig')" id="btnTabConfig" class="px-3.5 py-2 font-bold rounded-xl bg-gray-200 text-gray-700">🛠️ Configuración</button>
+              <button onclick="logout()" class="px-3.5 py-2 font-bold rounded-xl bg-gray-700 text-white">🚪 Salir</button>
+            </div>
+          </div>
+
+          <div id="contenedorDirectivoCE">
+            ${obtenerHTMLControlEscolar()}
+          </div>
+
+          <div id="contenedorDirectivoTS" class="hidden">
+            ${obtenerHTMLTrabajoSocial()}
+          </div>
+
+          <div id="contenedorDirectivoPref" class="hidden">
+            ${obtenerHTMLPrefectura()}
+          </div>
+
+          <div id="contenedorDirectivoConfig" class="hidden">
+            ${obtenerHTMLConfiguracion()}
+          </div>
+        </div>
+      `;
+      renderizerUsuariosLista();
+      actualizarAlumnosTS();
+      renderizarListaIncidencias();
+      renderizarCargaHoraria();
+    }
+
+    function switchDirectivoTab(tab) {
+      const ce = document.getElementById('contenedorDirectivoCE');
+      const ts = document.getElementById('contenedorDirectivoTS');
+      const pref = document.getElementById('contenedorDirectivoPref');
+      const cfg = document.getElementById('contenedorDirectivoConfig');
+      
+      ce.classList.toggle('hidden', tab !== 'tabCE');
+      ts.classList.toggle('hidden', tab !== 'tabTS');
+      pref.classList.toggle('hidden', tab !== 'tabPref');
+      cfg.classList.toggle('hidden', tab !== 'tabConfig');
+
+      document.getElementById('btnTabCE').className = tab === 'tabCE' ? "px-3.5 py-2 font-bold rounded-xl bg-red-800 text-white shadow" : "px-3.5 py-2 font-bold rounded-xl bg-gray-200 text-gray-700";
+      document.getElementById('btnTabTS').className = tab === 'tabTS' ? "px-3.5 py-2 font-bold rounded-xl bg-red-800 text-white shadow" : "px-3.5 py-2 font-bold rounded-xl bg-gray-200 text-gray-700";
+      document.getElementById('btnTabPref').className = tab === 'tabPref' ? "px-3.5 py-2 font-bold rounded-xl bg-red-800 text-white shadow" : "px-3.5 py-2 font-bold rounded-xl bg-gray-200 text-gray-700";
+      document.getElementById('btnTabConfig').className = tab === 'tabConfig' ? "px-3.5 py-2 font-bold rounded-xl bg-red-800 text-white shadow" : "px-3.5 py-2 font-bold rounded-xl bg-gray-200 text-gray-700";
+
+      if (tab === 'tabTS') actualizarAlumnosTS();
+      if (tab === 'tabPref') renderizarListaIncidencias();
+      if (tab === 'tabConfig') renderizarCargaHoraria();
+    }
+
+    // --- CONTROL ESCOLAR ---
+    function obtenerHTMLControlEscolar() {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      const grupos = obtenerGruposPorCiclo(cicloSel);
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-red-50 p-4 rounded-xl border border-red-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-red-900 uppercase">📅 Seleccionar Ciclo Escolar:</span>
+              <select id="ceCicloFiltro" onchange="cambiarCicloCE(this.value)" class="p-2 border rounded-lg bg-white font-bold text-red-800 shadow-sm">
+                ${ciclosDisponibles.map(c => `<option value="${c}" ${c === cicloSel ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <span class="font-semibold text-red-800">Mostrando datos para el ciclo: <b>${cicloSel}</b></span>
+          </div>
+
+          <div class="flex gap-2 border-b pb-3">
+            <button onclick="switchSubCE('cePadron')" id="btnSubCEPadron" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-800 text-white">📋 Padrón de Alumnos</button>
+            <button onclick="switchSubCE('ceReportes')" id="btnSubCEReportes" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">📊 Reportes</button>
+            <button onclick="switchSubCE('ceDocumentos')" id="btnSubCEDocumentos" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">📄 Generador de Documentos Oficiales</button>
+          </div>
+
+          <div id="subCEPadron" class="bg-gray-50 p-5 rounded-xl border space-y-3">
+            <h3 class="font-bold text-xs uppercase text-red-800">📋 Padrón de Alumnos por Grupo (${cicloSel})</h3>
+            <select id="padronGrupoSel" onchange="cargarPadronGrupo()" class="w-full p-2.5 text-xs border rounded-xl bg-white font-bold text-red-800">
+              <option value="">-- Seleccionar Grupo --</option>
+              ${grupos.map(g => `<option value="${g}">${g}</option>`).join('')}
+            </select>
+            <div id="padronWorkspace" class="space-y-2 hidden">
+              <div id="tablaPadronContainer" class="overflow-x-auto bg-white border p-2 rounded-xl"></div>
+              <div class="flex gap-2">
+                <button onclick="agregarFilaPadron()" class="bg-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold">+ Agregar Fila</button>
+                <button onclick="guardarPadron()" class="bg-red-800 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex-1">💾 Guardar Padrón</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="subCEReportes" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden">
+            <h3 class="font-bold text-xs uppercase text-red-800">📊 Análisis y Reportes Institucionales (${cicloSel})</h3>
+            <div class="grid md:grid-cols-3 gap-3 text-xs">
+              <div>
+                <label class="block font-bold text-gray-700 mb-1">Filtrar por Grado:</label>
+                <select id="repGrado" class="w-full p-2 border rounded-lg bg-white font-bold">
+                  <option value="todos">Todos los Grados</option>
+                  <option value="1">1° Grado</option>
+                  <option value="2">2° Grado</option>
+                  <option value="3">3° Grado</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-bold text-gray-700 mb-1">Filtrar por Grupo:</label>
+                <select id="repGrupo" class="w-full p-2 border rounded-lg bg-white font-bold">
+                  <option value="todos">Todos los Grupos</option>
+                  <option value="A">Grupo A</option>
+                  <option value="B">Grupo B</option>
+                  <option value="C">Grupo C</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="flex flex-wrap gap-2 pt-2">
+              <button onclick="generarReporteGenerico('vista')" class="flex-1 bg-red-800 text-white font-bold py-2.5 rounded-xl text-xs shadow">🔍 Generar Vista de Análisis</button>
+              <button onclick="exportarReporteExcel()" class="bg-green-700 hover:bg-green-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow flex items-center gap-1">📊 Descargar Excel</button>
+              <button onclick="imprimirReportePDF()" class="bg-gray-700 hover:bg-gray-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow flex items-center gap-1">📄 Ver / Imprimir PDF</button>
+            </div>
+
+            <div id="resReporte" class="bg-white p-3 border rounded-xl text-xs hidden"></div>
+          </div>
+
+          <!-- SUBMÓDULO DOCUMENTOS ACTUALIZADO CON FILTROS Y BUSCADOR -->
+          <div id="subCEDocumentos" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden">
+            <h3 class="font-bold text-xs uppercase text-red-800">📄 Generador de Constancia de Estudios (${cicloSel})</h3>
+            <div class="grid md:grid-cols-2 gap-4 text-xs">
+              <div class="bg-white p-4 rounded-xl border space-y-3">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1">✏️ Selección de Alumno y Datos</h5>
+                
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Grado:</label>
+                    <select id="docFiltroGrado" onchange="actualizarGruposConstancia(); actualizarAlumnosConstancia();" class="w-full p-2 border rounded-lg font-bold">
+                      <option value="">-- Seleccionar --</option>
+                      <option value="1">1° Grado</option>
+                      <option value="2">2° Grado</option>
+                      <option value="3">3° Grado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Grupo:</label>
+                    <select id="docFiltroGrupo" onchange="actualizarAlumnosConstancia()" class="w-full p-2 border rounded-lg font-bold">
+                      <option value="">-- Seleccionar --</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">🔍 Buscar por Coincidencia (Nombre):</label>
+                  <input type="text" id="docBuscadorAlumno" oninput="actualizarAlumnosConstancia()" placeholder="Escriba el nombre del alumno..." class="w-full p-2 border rounded-lg font-medium bg-gray-50">
+                </div>
+
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Lista de Alumnos Registrados:</label>
+                  <select id="docSelectAlumno" onchange="seleccionarAlumnoConstancia(this)" class="w-full p-2.5 border rounded-lg font-bold bg-white text-gray-800">
+                    <option value="">-- Seleccione primero Grado y Grupo --</option>
+                  </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 border-t pt-2">
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Nombre Alumno(a):</label>
+                    <input type="text" id="docConstanciaNombre" placeholder="Nombre completo..." class="w-full p-2 border rounded-lg font-semibold bg-gray-50" readonly>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Grado y Grupo:</label>
+                    <input type="text" id="docConstanciaGradoGrupo" placeholder="ej. 2°A" class="w-full p-2 border rounded-lg font-semibold bg-gray-50" readonly>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Fecha de Expedición:</label>
+                  <input type="date" id="docConstanciaFecha" value="${new Date().toISOString().slice(0,10)}" class="w-full p-2 border rounded-lg font-semibold">
+                </div>
+
+                <button onclick="generarConstanciaPDF()" class="w-full bg-red-800 hover:bg-red-900 text-white font-bold py-2.5 rounded-xl shadow mt-2">📥 Generar y Descargar Constancia PDF</button>
+              </div>
+
+              <div class="bg-white p-4 rounded-xl border space-y-2 text-xs flex flex-col justify-between">
+                <div>
+                  <h5 class="font-bold text-gray-800 uppercase border-b pb-1 mb-2">👁️ Vista Previa del Documento</h5>
+                  <div class="bg-gray-50 p-4 border rounded-lg text-gray-600 space-y-2 text-[11px] leading-relaxed min-h-[160px]">
+                    <p class="font-bold text-center text-gray-800">CONSTANCIA DE ESTUDIOS</p>
+                    <p>A quien corresponda: Por medio de la presente se hace constar que el alumno(a) está debidamente inscrito(a)...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function cambiarCicloCE(val) {
+      window.ceCicloSeleccionado = val;
+      if (currentUser && currentUser.role === 'Directivo') renderPanelDirectivo();
+      else if (currentUser && currentUser.role === 'Equipo Administrativo') renderPanelAdministrativo();
+    }
+
+    function switchSubCE(sub) {
+      document.getElementById('subCEPadron').classList.toggle('hidden', sub !== 'cePadron');
+      document.getElementById('subCEReportes').classList.toggle('hidden', sub !== 'ceReportes');
+      document.getElementById('subCEDocumentos').classList.toggle('hidden', sub !== 'ceDocumentos');
+      
+      document.getElementById('btnSubCEPadron').className = sub === 'cePadron' ? "px-3 py-1.5 text-xs font-bold rounded-lg bg-red-800 text-white" : "px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700";
+      document.getElementById('btnSubCEReportes').className = sub === 'ceReportes' ? "px-3 py-1.5 text-xs font-bold rounded-lg bg-red-800 text-white" : "px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700";
+      document.getElementById('btnSubCEDocumentos').className = sub === 'ceDocumentos' ? "px-3 py-1.5 text-xs font-bold rounded-lg bg-red-800 text-white" : "px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700";
+    }
+
+    // --- FUNCIONES LÓGICAS PARA LA CONSTANCIA DE ESTUDIOS ---
+    function actualizarGruposConstancia() {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      const grado = document.getElementById('docFiltroGrado')?.value;
+      const selectGrupo = document.getElementById('docFiltroGrupo');
+      if (!selectGrupo) return;
+
+      if (!grado) {
+        selectGrupo.innerHTML = '<option value="">-- Seleccionar --</option>';
+        return;
+      }
+
+      const cfg = dbGruposConfig[cicloSel] || {};
+      const listaGrupos = cfg[grado] || [];
+      
+      let html = '<option value="">-- Seleccionar --</option>';
+      listaGrupos.forEach(g => {
+        const letraGrupo = g.split('°')[1] || g;
+        html += `<option value="${letraGrupo}">Grupo ${letraGrupo}</option>`;
+      });
+      selectGrupo.innerHTML = html;
+    }
+
+    function actualizarAlumnosConstancia() {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      const grado = document.getElementById('docFiltroGrado')?.value;
+      const grupo = document.getElementById('docFiltroGrupo')?.value;
+      const textoBusqueda = (document.getElementById('docBuscadorAlumno')?.value || '').toLowerCase().trim();
+      const selectAlumno = document.getElementById('docSelectAlumno');
+      if (!selectAlumno) return;
+
+      if (!grado || !grupo) {
+        selectAlumno.innerHTML = '<option value="">-- Seleccione primero Grado y Grupo --</option>';
+        document.getElementById('docConstanciaNombre').value = '';
+        document.getElementById('docConstanciaGradoGrupo').value = '';
+        return;
+      }
+
+      const filtrados = dbAlumnos.filter(a => {
+        if (a.ciclo !== cicloSel) return false;
+        if (a.grado !== grado) return false;
+        if (a.grupo !== grupo) return false;
+        if (textoBusqueda && !a.name.toLowerCase().includes(textoBusqueda)) return false;
+        return true;
+      });
+
+      if (filtrados.length === 0) {
+        selectAlumno.innerHTML = '<option value="">-- Sin alumnos en este grupo --</option>';
+        document.getElementById('docConstanciaNombre').value = '';
+        document.getElementById('docConstanciaGradoGrupo').value = '';
+        return;
+      }
+
+      let html = '<option value="">-- Seleccione un alumno --</option>';
+      filtrados.forEach(a => {
+        html += `<option value="${a.id}">${a.name}</option>`;
+      });
+      selectAlumno.innerHTML = html;
+    }
+
+    function seleccionarAlumnoConstancia(select) {
+      const id = select.value;
+      if (!id) {
+        document.getElementById('docConstanciaNombre').value = '';
+        document.getElementById('docConstanciaGradoGrupo').value = '';
+        return;
+      }
+      const alumno = dbAlumnos.find(a => a.id == id);
+      if (alumno) {
+        document.getElementById('docConstanciaNombre').value = alumno.name;
+        document.getElementById('docConstanciaGradoGrupo').value = `${alumno.grado}°${alumno.grupo}`;
+      }
+    }
+
+    // --- TRABAJO SOCIAL ---
+    function obtenerHTMLTrabajoSocial() {
+      const cicloSel = window.tsCicloSeleccionado || cicloActivo;
+      return `
+        <div class="space-y-6">
+          <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-amber-900 uppercase">📅 Seleccionar Ciclo Escolar:</span>
+              <select id="tsCicloFiltro" onchange="cambiarCicloTS(this.value)" class="p-2 border rounded-lg bg-white font-bold text-amber-800 shadow-sm">
+                ${ciclosDisponibles.map(c => `<option value="${c}" ${c === cicloSel ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <span class="font-semibold text-amber-800">Trabajo Social vinculado al ciclo: <b>${cicloSel}</b></span>
+          </div>
+
+          <div class="bg-amber-50 p-5 rounded-xl border border-amber-200 space-y-4">
+            <h3 class="font-bold text-xs uppercase text-amber-800">🤝 Departamento de Trabajo Social - Emisión de Documentos (${cicloSel})</h3>
+            <div class="grid md:grid-cols-2 gap-4 text-xs">
+              <div class="bg-white p-4 rounded-xl border space-y-3">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1">✏️ Selección de Alumno y Parámetros</h5>
+                
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Tipo de Documento:</label>
+                  <select id="tsDocTipo" onchange="actualizarFormularioTS()" class="w-full p-2 border rounded-lg font-bold text-amber-800">
+                    <option value="citatorio">Citatorio a Padre de Familia</option>
+                    <option value="conducta">Carta de Conducta</option>
+                  </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Grado:</label>
+                    <select id="tsFiltroGrado" onchange="actualizarAlumnosTS()" class="w-full p-2 border rounded-lg font-bold">
+                      <option value="todos">Todos</option>
+                      <option value="1">1° Grado</option>
+                      <option value="2">2° Grado</option>
+                      <option value="3">3° Grado</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Grupo:</label>
+                    <select id="tsFiltroGrupo" onchange="actualizarAlumnosTS()" class="w-full p-2 border rounded-lg font-bold">
+                      <option value="todos">Todos</option>
+                      <option value="A">Grupo A</option>
+                      <option value="B">Grupo B</option>
+                      <option value="C">Grupo C</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">🔍 Buscar Alumno por Nombre:</label>
+                  <input type="text" id="tsBuscadorAlumno" oninput="actualizarAlumnosTS()" placeholder="Escriba para buscar coincidencias..." class="w-full p-2 border rounded-lg font-medium bg-gray-50">
+                </div>
+
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Seleccionar Alumno del Padrón:</label>
+                  <select id="tsSelectAlumno" onchange="seleccionarAlumnoTS(this)" class="w-full p-2.5 border rounded-lg font-bold bg-white text-gray-800">
+                    <option value="">-- Seleccione un alumno --</option>
+                  </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Nombre Alumno(a):</label>
+                    <input type="text" id="tsAlumnoNombre" placeholder="Nombre completo..." class="w-full p-2 border rounded-lg font-semibold bg-gray-50" readonly>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Grado y Grupo:</label>
+                    <input type="text" id="tsAlumnoGradoGrupo" placeholder="ej. 1°A" class="w-full p-2 border rounded-lg font-semibold bg-gray-50" readonly>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Fecha:</label>
+                  <input type="date" id="tsFechaExp" value="${new Date().toISOString().slice(0,10)}" class="w-full p-2 border rounded-lg font-semibold">
+                </div>
+
+                <div id="tsCampoMotivoContainer">
+                  <label class="block font-bold text-gray-700 mb-1">Motivo / Observaciones del Citatorio:</label>
+                  <textarea id="tsMotivo" rows="2" placeholder="Describa brevemente la razón..." class="w-full p-2 border rounded-lg font-medium"></textarea>
+                </div>
+
+                <button onclick="generarDocumentoTSPDF()" class="w-full bg-amber-700 hover:bg-amber-800 text-white font-bold py-2.5 rounded-xl shadow mt-2">📥 Generar y Descargar PDF</button>
+              </div>
+
+              <div class="bg-white p-4 rounded-xl border space-y-2 text-xs flex flex-col justify-between">
+                <div>
+                  <h5 class="font-bold text-gray-800 uppercase border-b pb-1 mb-2">👁️ Vista Previa del Módulo</h5>
+                  <div class="bg-gray-50 p-4 border rounded-lg text-gray-600 space-y-2 text-[11px] leading-relaxed min-h-[160px]">
+                    <p class="font-bold text-center text-gray-800" id="prevTSTitulo">CITATORIO A PADRE DE FAMILIA</p>
+                    <p id="prevTSCuerpo">Se le cita con carácter de URGENTE a las instalaciones...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function cambiarCicloTS(val) {
+      window.tsCicloSeleccionado = val;
+      actualizarAlumnosTS();
+    }
+
+    function actualizarAlumnosTS() {
+      const cicloSel = window.tsCicloSeleccionado || cicloActivo;
+      const gradoFiltro = document.getElementById('tsFiltroGrado')?.value || 'todos';
+      const grupoFiltro = document.getElementById('tsFiltroGrupo')?.value || 'todos';
+      const textoBusqueda = (document.getElementById('tsBuscadorAlumno')?.value || '').toLowerCase().trim();
+      const select = document.getElementById('tsSelectAlumno');
+      if (!select) return;
+
+      const filtrados = dbAlumnos.filter(a => {
+        if (a.ciclo !== cicloSel) return false;
+        if (gradoFiltro !== 'todos' && a.grado !== gradoFiltro) return false;
+        if (grupoFiltro !== 'todos' && a.grupo !== grupoFiltro) return false;
+        if (textoBusqueda && !a.name.toLowerCase().includes(textoBusqueda)) return false;
+        return true;
+      });
+
+      let html = '<option value="">-- Seleccione un alumno --</option>';
+      filtrados.forEach(a => {
+        html += `<option value="${a.id}">${a.name} (${a.grado}°${a.grupo})</option>`;
+      });
+      select.innerHTML = html;
+    }
+
+    function seleccionarAlumnoTS(select) {
+      const id = select.value;
+      if (!id) {
+        document.getElementById('tsAlumnoNombre').value = '';
+        document.getElementById('tsAlumnoGradoGrupo').value = '';
+        return;
+      }
+      const alumno = dbAlumnos.find(a => a.id == id);
+      if (alumno) {
+        document.getElementById('tsAlumnoNombre').value = alumno.name;
+        document.getElementById('tsAlumnoGradoGrupo').value = `${alumno.grado}°${alumno.grupo}`;
+      }
+    }
+
+    function actualizarFormularioTS() {
+      const tipo = document.getElementById('tsDocTipo').value;
+      const campoMotivo = document.getElementById('tsCampoMotivoContainer');
+      const prevTitulo = document.getElementById('prevTSTitulo');
+      const prevCuerpo = document.getElementById('prevTSCuerpo');
+
+      if (tipo === 'citatorio') {
+        campoMotivo.classList.remove('hidden');
+        prevTitulo.innerText = "CITATORIO A PADRE DE FAMILIA";
+        prevCuerpo.innerText = "Se le cita con carácter de URGENTE a las instalaciones...";
+      } else {
+        campoMotivo.classList.add('hidden');
+        prevTitulo.innerText = "CARTA DE CONDUCTA";
+        prevCuerpo.innerText = "Se hace constar que el alumno(a) observó una conducta satisfactoria...";
+      }
+    }
+
+    // --- PREFECTURA ---
+    function obtenerHTMLPrefectura() {
+      const cicloSel = window.prefCicloSeleccionado || cicloActivo;
+      const grupos = obtenerGruposPorCiclo(cicloSel);
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-blue-900 uppercase">📅 Seleccionar Ciclo Escolar:</span>
+              <select id="prefCicloFiltro" onchange="cambiarCicloPrefectura(this.value)" class="p-2 border rounded-lg bg-white font-bold text-blue-800 shadow-sm">
+                ${ciclosDisponibles.map(c => `<option value="${c}" ${c === cicloSel ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <span class="font-semibold text-blue-800">Prefectura activa para el ciclo: <b>${cicloSel}</b></span>
+          </div>
+
+          <div class="bg-blue-50 p-5 rounded-xl border border-blue-200 space-y-4">
+            <h3 class="font-bold text-xs uppercase text-blue-800">🚨 Prefectura - Registro y Catálogo de Incidencias (${cicloSel})</h3>
+            <div class="grid md:grid-cols-2 gap-4 text-xs">
+              <div class="bg-white p-4 rounded-xl border space-y-3">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1">📝 Registrar Nueva Incidencia</h5>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Seleccionar Grupo:</label>
+                  <select id="prefGrupoSel" class="w-full p-2 border rounded-lg font-bold text-blue-800">
+                    <option value="">-- Seleccionar Grupo --</option>
+                    ${grupos.map(g => `<option value="${g}">${g}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Nombre del Alumno(a):</label>
+                  <input type="text" id="prefAlumnoNombre" placeholder="ej. Carlos Pérez Gómez" class="w-full p-2 border rounded-lg font-semibold">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Tipo de Incidencia / Falta:</label>
+                    <select id="prefTipoFalta" class="w-full p-2 border rounded-lg font-bold">
+                      <option value="Retardo Injustificado">Retardo Injustificado</option>
+                      <option value="Uniforme Incompleto">Uniforme Incompleto</option>
+                      <option value="Indisciplina en Aula">Indisciplina en Aula</option>
+                      <option value="Falta / Inasistencia">Falta / Inasistencia</option>
+                      <option value="Otro Motivo">Otro Motivo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Fecha:</label>
+                    <input type="date" id="prefFecha" value="${new Date().toISOString().slice(0,10)}" class="w-full p-2 border rounded-lg font-semibold">
+                  </div>
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Observaciones:</label>
+                  <textarea id="prefObs" rows="2" placeholder="Detalles de la falta..." class="w-full p-2 border rounded-lg font-medium"></textarea>
+                </div>
+                <button onclick="registrarIncidenciaPrefectura()" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2.5 rounded-xl shadow mt-2">💾 Guardar Incidencia en Bitácora</button>
+              </div>
+              <div class="bg-white p-4 rounded-xl border space-y-2 text-xs">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1 mb-2">📋 Bitácora de Incidencias</h5>
+                <div id="contenedorListaIncidencias" class="space-y-2 max-h-64 overflow-y-auto">
+                  <p class="text-gray-400 text-center py-4">No hay incidencias registradas aún.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function cambiarCicloPrefectura(val) {
+      window.prefCicloSeleccionado = val;
+      renderizarListaIncidencias();
+    }
+
+    function registrarIncidenciaPrefectura() {
+      const cicloSel = window.prefCicloSeleccionado || cicloActivo;
+      const grupo = document.getElementById('prefGrupoSel').value;
+      const alumno = document.getElementById('prefAlumnoNombre').value.trim();
+      const tipo = document.getElementById('prefTipoFalta').value;
+      const fecha = document.getElementById('prefFecha').value;
+      const obs = document.getElementById('prefObs').value.trim();
+
+      if (!grupo || !alumno) return alert('Por favor seleccione el grupo e ingrese el nombre.');
+
+      dbIncidencias.push({ id: Date.now(), ciclo: cicloSel, grupo, alumno, tipo, fecha, obs });
+      guardarTodoEnMemoria();
+      alert('¡Incidencia registrada!');
+      document.getElementById('prefAlumnoNombre').value = '';
+      document.getElementById('prefObs').value = '';
+      renderizarListaIncidencias();
+    }
+
+    function renderizarListaIncidencias() {
+      const container = document.getElementById('contenedorListaIncidencias');
+      if (!container) return;
+      const cicloSel = window.prefCicloSeleccionado || cicloActivo;
+      const filtradas = dbIncidencias.filter(i => i.ciclo === cicloSel);
+
+      if (filtradas.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-4">No hay incidencias registradas para este ciclo.</p>';
+        return;
+      }
+      let html = '';
+      filtradas.slice().reverse().forEach(inc => {
+        html += `
+          <div class="bg-gray-50 p-2.5 rounded-lg border space-y-1">
+            <div class="flex justify-between items-center font-bold text-gray-800">
+              <span>${inc.alumno} (${inc.grupo})</span>
+              <span class="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded">${inc.tipo}</span>
+            </div>
+            <p class="text-[11px] text-gray-600"><b>Fecha:</b> ${inc.fecha} | <b>Obs:</b> ${inc.obs || 'Ninguna'}</p>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    // --- CONFIGURACIÓN GENERAL ---
+    function obtenerHTMLConfiguracion() {
+      const cicloSel = window.configCicloSeleccionado || cicloActivo;
+      return `
+        <div class="space-y-6">
+          <div class="bg-red-50 p-4 rounded-xl border border-red-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-red-900 uppercase">📅 Seleccionar Ciclo Escolar:</span>
+              <select id="configCicloFiltro" onchange="cambiarCicloConfig(this.value)" class="p-2 border rounded-lg bg-white font-bold text-red-800 shadow-sm">
+                ${ciclosDisponibles.map(c => `<option value="${c}" ${c === cicloSel ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <span class="font-semibold text-red-800">Configuración general para el ciclo: <b>${cicloSel}</b></span>
+          </div>
+
+          <div class="flex flex-wrap gap-2 border-b pb-3">
+            <button onclick="switchConfigSubTab('subCiclo')" id="btnSubCiclo" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-800 text-white">Ciclo Escolar</button>
+            <button onclick="switchConfigSubTab('subGruposGrados')" id="btnSubGruposGrados" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Grupos/Grados</button>
+            <button onclick="switchConfigSubTab('subAsignaturas')" id="btnSubAsignaturas" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Asignaturas</button>
+            <button onclick="switchConfigSubTab('subCargaDocente')" id="btnSubCargaDocente" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Carga Horaria</button>
+            <button onclick="switchConfigSubTab('subRangoFichas')" id="btnSubRangoFichas" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Rangos Fichas</button>
+            <button onclick="switchConfigSubTab('subCredenciales')" id="btnSubCredenciales" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Credenciales</button>
+            <button onclick="switchConfigSubTab('subMembrete')" id="btnSubMembrete" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Logotipos</button>
+            <button onclick="switchConfigSubTab('subRespaldos')" id="btnSubRespaldos" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700">Respaldo</button>
+          </div>
+
+          <!-- Sub Ciclo Escolar -->
+          <div id="subConfigCiclo" class="bg-gray-50 p-5 rounded-xl border space-y-4 max-w-lg text-xs">
+            <h4 class="font-bold uppercase text-red-800 text-sm">📅 Administración de Ciclos Escolares</h4>
+            <div>
+              <label class="block font-bold text-gray-700 mb-1">Establecer como Ciclo Escolar Activo Principal:</label>
+              <select id="selectCicloGlobal" class="w-full p-2.5 border rounded-xl bg-white font-bold text-red-800">
+                ${ciclosDisponibles.map(c => `<option value="${c}" ${c === cicloActivo ? 'selected' : ''}>${c}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-gray-700 mb-1">Añadir Nuevo Ciclo Escolar:</label>
+              <div class="flex gap-2">
+                <input type="text" id="nuevoCicloInput" placeholder="ej. 2028-2029" class="p-2 border rounded-lg flex-1">
+                <button onclick="agregarNuevoCiclo()" class="bg-gray-800 text-white font-bold px-4 py-2 rounded-lg">Agregar</button>
+              </div>
+            </div>
+            <button onclick="guardarCicloConfig()" class="w-full bg-red-800 text-white font-bold py-2.5 rounded-xl shadow">💾 Guardar Ciclo Activo</button>
+          </div>
+
+          <!-- Sub Grupos y Grados -->
+          <div id="subConfigGruposGrados" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden max-w-2xl text-xs">
+            <h4 class="font-bold uppercase text-red-800 text-sm">🏫 Configuración de Grupos y Grados para el Ciclo (${cicloSel})</h4>
+            <div class="bg-white p-4 rounded-xl border space-y-4">
+              <p class="font-semibold text-gray-600">Seleccione rápidamente los grupos que operarán en este ciclo escolar:</p>
+              
+              <div class="grid md:grid-cols-3 gap-3">
+                <div class="p-3 bg-gray-50 rounded-xl border space-y-2">
+                  <span class="font-bold text-red-800 block border-b pb-1">1° Grado</span>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_1_A" value="1°A" class="rounded"> 1°A</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_1_B" value="1°B" class="rounded"> 1°B</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_1_C" value="1°C" class="rounded"> 1°C</label>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-xl border space-y-2">
+                  <span class="font-bold text-red-800 block border-b pb-1">2° Grado</span>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_2_A" value="2°A" class="rounded"> 2°A</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_2_B" value="2°B" class="rounded"> 2°B</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_2_C" value="2°C" class="rounded"> 2°C</label>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-xl border space-y-2">
+                  <span class="font-bold text-red-800 block border-b pb-1">3° Grado</span>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_3_A" value="3°A" class="rounded"> 3°A</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_3_B" value="3°B" class="rounded"> 3°B</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" id="chk_3_C" value="3°C" class="rounded"> 3°C</label>
+                </div>
+              </div>
+
+              <button onclick="guardarGruposMasivos('${cicloSel}')" class="w-full bg-red-800 text-white font-bold py-2.5 rounded-xl shadow">💾 Guardar Selección de Grupos</button>
+
+              <div class="border-t pt-3">
+                <p class="font-semibold text-gray-600 mb-1">Grupos Activos Actuales:</p>
+                <div id="listaGruposConfigContainer" class="p-3 bg-gray-50 rounded-lg flex flex-wrap gap-2"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub Asignaturas -->
+          <div id="subConfigAsignaturas" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden text-xs">
+            <h4 class="font-bold uppercase text-red-800 text-sm">📚 Gestión y Catálogo de Asignaturas por Grado</h4>
+            <div class="bg-white p-4 rounded-xl border space-y-3">
+              <h5 class="font-bold text-gray-800 uppercase border-b pb-1">➕ Agregar Nueva Asignatura</h5>
+              <div class="grid md:grid-cols-3 gap-2">
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Grado:</label>
+                  <select id="nuevaAsigGrado" class="w-full p-2 border rounded-lg font-bold">
+                    <option value="1">1° Grado</option>
+                    <option value="2">2° Grado</option>
+                    <option value="3">3° Grado</option>
+                  </select>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block font-bold text-gray-700 mb-1">Nombre de la Asignatura:</label>
+                  <div class="flex gap-2">
+                    <input type="text" id="nuevaAsigNombre" placeholder="ej. Matemáticas I" class="p-2 border rounded-lg flex-1 font-semibold">
+                    <button onclick="agregarAsignatura()" class="bg-red-800 text-white font-bold px-4 py-2 rounded-lg">Guardar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="grid md:grid-cols-3 gap-4" id="contenedorAsignaturasPorGrado"></div>
+          </div>
+
+          <!-- Sub Carga Horaria -->
+          <div id="subConfigCargaDocente" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden text-xs">
+            <h4 class="font-bold uppercase text-red-800 text-sm">👨‍🏫 Asignación de Carga Horaria y Docente (${cicloSel})</h4>
+            <div class="grid md:grid-cols-3 gap-4">
+              <div class="bg-white p-4 rounded-xl border space-y-3">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1">➕ Asignar Materia a Docente</h5>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Seleccionar Docente:</label>
+                  <select id="cargaDocenteKey" class="w-full p-2 border rounded-lg font-bold text-red-800 bg-white"></select>
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Grado:</label>
+                  <select id="cargaGrado" onchange="actualizarAsignaturasCargaHoraria()" class="w-full p-2 border rounded-lg font-bold bg-white">
+                    <option value="1">1° Grado</option>
+                    <option value="2">2° Grado</option>
+                    <option value="3">3° Grado</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Asignatura:</label>
+                  <select id="cargaAsignatura" class="w-full p-2 border rounded-lg font-bold bg-white"></select>
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Grupo:</label>
+                  <select id="cargaGrupo" class="w-full p-2 border rounded-lg font-bold bg-white"></select>
+                </div>
+                <button onclick="guardarCargaHoraria()" class="w-full bg-red-800 text-white font-bold py-2.5 rounded-xl shadow mt-1">💾 Guardar Asignación</button>
+              </div>
+
+              <div class="bg-white p-4 rounded-xl border space-y-2 md:col-span-2">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1">📋 Carga Horaria Registrada en el Ciclo</h5>
+                <div id="contenedorTablaCargaHoraria" class="overflow-x-auto max-h-64">
+                  <p class="text-gray-400 text-center py-4">No hay asignaciones registradas aún.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub Rangos Fichas -->
+          <div id="subConfigRangoFichas" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden max-w-lg text-xs">
+            <h4 class="font-bold uppercase text-red-800 text-sm">🎯 Definición de Rangos de Calificaciones para Fichas</h4>
+            <div class="bg-white p-4 rounded-xl border space-y-3">
+              <div>
+                <label class="block font-bold text-gray-700 mb-1">Calificación Mínima:</label>
+                <input type="number" step="0.1" id="rangoMin" value="${dbRangosConfig.min}" class="w-full p-2 border rounded-lg font-bold">
+              </div>
+              <div>
+                <label class="block font-bold text-gray-700 mb-1">Calificación Máxima de Alerta / Rango:</label>
+                <input type="number" step="0.1" id="rangoMax" value="${dbRangosConfig.max}" class="w-full p-2 border rounded-lg font-bold">
+              </div>
+              <button onclick="guardarRangosConfig()" class="w-full bg-red-800 text-white font-bold py-2 rounded-lg shadow">💾 Guardar Rangos</button>
+            </div>
+          </div>
+
+          <!-- Sub Credenciales -->
+          <div id="subConfigCredenciales" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden text-xs">
+            <h4 class="font-bold uppercase text-red-800 text-sm">🔑 Gestión de Credenciales y Usuarios</h4>
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="bg-white p-4 rounded-xl border space-y-3">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1" id="tituloFormUsuario">👤 Registrar Nuevo Usuario</h5>
+                <input type="hidden" id="editKeyUser" value="">
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Usuario / Clave de Acceso:</label>
+                  <input type="text" id="nuevoUsuarioClave" placeholder="ej. prefecto.turno" class="w-full p-2 border rounded-lg">
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Nombre Completo:</label>
+                  <input type="text" id="nuevoUsuarioNombre" placeholder="ej. Profr. Juan Pérez" class="w-full p-2 border rounded-lg">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Rol Oficial:</label>
+                    <select id="nuevoUsuarioRol" class="w-full p-2 border rounded-lg font-bold text-red-800">
+                      <option value="Docente">Docente</option>
+                      <option value="Equipo Administrativo">Equipo Administrativo</option>
+                      <option value="Trabajo Social">Trabajo Social</option>
+                      <option value="Prefecto">Prefecto</option>
+                      <option value="Directivo">Directivo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Contraseña:</label>
+                    <input type="password" id="nuevoUsuarioPass" placeholder="••••••••" class="w-full p-2 border rounded-lg">
+                  </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                  <button onclick="guardarOActualizarUsuario()" id="btnGuardarUser" class="flex-1 bg-red-800 text-white font-bold py-2 rounded-lg shadow">💾 Guardar Usuario</button>
+                  <button onclick="cancelarEdicionUsuario()" id="btnCancelarUser" class="hidden bg-gray-400 text-white font-bold px-3 py-2 rounded-lg">Cancelar</button>
+                </div>
+              </div>
+              <div class="bg-white p-4 rounded-xl border space-y-2">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1">📋 Usuarios Registrados</h5>
+                <div id="contenedorListaUsuarios" class="space-y-2 max-h-64 overflow-y-auto"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub Logotipos -->
+          <div id="subConfigMembrete" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden text-xs">
+            <h4 class="font-bold uppercase text-red-800 text-sm">🏛️ Logotipos y Membrete Institucional</h4>
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="bg-white p-4 rounded-xl border space-y-3">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1">📄 Títulos y Datos Oficiales</h5>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Nombre Oficial de la Escuela:</label>
+                  <input type="text" id="mbNombre" value="${dbMembrete.nombreEscuela}" class="w-full p-2 border rounded-lg font-semibold">
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Lema o Nombre Institucional:</label>
+                  <input type="text" id="mbLema" value="${dbMembrete.lema}" class="w-full p-2 border rounded-lg font-semibold">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Clave CCT:</label>
+                    <input type="text" id="mbCct" value="${dbMembrete.cct}" class="w-full p-2 border rounded-lg font-semibold uppercase">
+                  </div>
+                  <div>
+                    <label class="block font-bold text-gray-700 mb-1">Turno:</label>
+                    <input type="text" id="mbTurno" value="${dbMembrete.turno}" class="w-full p-2 border rounded-lg font-semibold">
+                  </div>
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Ubicación / Municipio:</label>
+                  <input type="text" id="mbUbicacion" value="${dbMembrete.ubicacion}" class="w-full p-2 border rounded-lg font-semibold">
+                </div>
+              </div>
+              <div class="bg-white p-4 rounded-xl border space-y-3">
+                <h5 class="font-bold text-gray-800 uppercase border-b pb-1">🖼️ Carga de Logotipos</h5>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Logo Izquierdo:</label>
+                  <input type="file" id="inputLogoIzq" accept="image/*" onchange="convertirLogoABase64(this, 'izq')" class="w-full">
+                </div>
+                <div>
+                  <label class="block font-bold text-gray-700 mb-1">Logo Derecho:</label>
+                  <input type="file" id="inputLogoDer" accept="image/*" onchange="convertirLogoABase64(this, 'der')" class="w-full">
+                </div>
+                <button onclick="guardarMembreteConfig()" class="w-full bg-red-800 text-white font-bold py-2.5 rounded-xl shadow mt-2">💾 Guardar Logos y Membrete</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sub Respaldo -->
+          <div id="subConfigRespaldos" class="bg-gray-50 p-5 rounded-xl border space-y-4 hidden max-w-xl text-xs">
+            <h4 class="font-bold uppercase text-red-800 text-sm">💾 Respaldo y Carga Integrales</h4>
+            <div class="space-y-4">
+              <div class="bg-white p-4 rounded-xl border space-y-2">
+                <h5 class="font-bold text-gray-800 uppercase">📥 Respaldar Absolutamente Todo (.JSON)</h5>
+                <button onclick="exportarBaseDeDatosTotal()" class="w-full bg-green-700 text-white font-bold py-2.5 rounded-xl shadow">Descargar Copia de Seguridad Total</button>
+              </div>
+              <div class="bg-white p-4 rounded-xl border space-y-2">
+                <h5 class="font-bold text-gray-800 uppercase">📤 Cargar y Restaurar Todo el Sistema</h5>
+                <input type="file" id="inputArchivoRestaurar" accept=".json" class="w-full border p-2 rounded-lg bg-gray-50">
+                <button onclick="restaurarBaseDeDatosTotal()" class="w-full bg-red-800 text-white font-bold py-2.5 rounded-xl shadow mt-1">⚠️ Restaurar Todo el Sistema</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function cambiarCicloConfig(val) {
+      window.configCicloSeleccionado = val;
+      renderizarGruposConfig();
+      renderizarCargaHoraria();
+    }
+
+    function switchConfigSubTab(subId) {
+      const ids = ['subConfigCiclo', 'subConfigGruposGrados', 'subConfigAsignaturas', 'subConfigCargaDocente', 'subConfigRangoFichas', 'subConfigCredenciales', 'subConfigMembrete', 'subConfigRespaldos'];
+      ids.forEach(s => {
+        const el = document.getElementById(s);
+        if (el) el.classList.add('hidden');
+      });
+
+      const map = {
+        'subCiclo': 'subConfigCiclo',
+        'subGruposGrados': 'subConfigGruposGrados',
+        'subAsignaturas': 'subConfigAsignaturas',
+        'subCargaDocente': 'subConfigCargaDocente',
+        'subRangoFichas': 'subConfigRangoFichas',
+        'subCredenciales': 'subConfigCredenciales',
+        'subMembrete': 'subConfigMembrete',
+        'subRespaldos': 'subConfigRespaldos'
+      };
+
+      const targetId = map[subId];
+      if (targetId) {
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) targetEl.classList.remove('hidden');
+        if (subId === 'subGruposGrados') renderizarGruposConfig();
+        if (subId === 'subAsignaturas') renderizarAsignaturasConfig();
+        if (subId === 'subCargaDocente') renderizarCargaHoraria();
+      }
+
+      ['btnSubCiclo', 'btnSubGruposGrados', 'btnSubAsignaturas', 'btnSubCargaDocente', 'btnSubRangoFichas', 'btnSubCredenciales', 'btnSubMembrete', 'btnSubRespaldos'].forEach(b => {
+        const el = document.getElementById(b);
+        if (el) {
+          const active = b === subId;
+          el.className = active ? "px-3 py-1.5 text-xs font-bold rounded-lg bg-red-800 text-white" : "px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-200 text-gray-700";
+        }
+      });
+    }
+
+    // --- CARGA HORARIA LOGIC ---
+    function renderizarCargaHoraria() {
+      const cicloSel = window.configCicloSeleccionado || cicloActivo;
+      
+      const selDocente = document.getElementById('cargaDocenteKey');
+      if (selDocente) {
+        let htmlDoc = '';
+        for (let uKey in dbDocentesUsers) {
+          const usr = dbDocentesUsers[uKey];
+          htmlDoc += `<option value="${uKey}">${usr.nombre} (${usr.role})</option>`;
+        }
+        selDocente.innerHTML = htmlDoc;
+      }
+
+      const selGrupo = document.getElementById('cargaGrupo');
+      if (selGrupo) {
+        const grupos = obtenerGruposPorCiclo(cicloSel);
+        selGrupo.innerHTML = grupos.length ? grupos.map(g => `<option value="${g}">${g}</option>`).join('') : '<option value="">No hay grupos creados</option>';
+      }
+
+      actualizarAsignaturasCargaHoraria();
+      renderizarTablaCargaHoraria();
+    }
+
+    function actualizarAsignaturasCargaHoraria() {
+      const grado = document.getElementById('cargaGrado')?.value || '1';
+      const selAsig = document.getElementById('cargaAsignatura');
+      if (!selAsig) return;
+
+      const asignaturas = asignaturasPorGrado[grado] || [];
+      selAsig.innerHTML = asignaturas.length ? asignaturas.map(a => `<option value="${a}">${a}</option>`).join('') : '<option value="">Sin asignaturas</option>';
+    }
+
+    function guardarCargaHoraria() {
+      const cicloSel = window.configCicloSeleccionado || cicloActivo;
+      const docenteKey = document.getElementById('cargaDocenteKey').value;
+      const grado = document.getElementById('cargaGrado').value;
+      const asignatura = document.getElementById('cargaAsignatura').value;
+      const grupo = document.getElementById('cargaGrupo').value;
+
+      if (!docenteKey || !asignatura || !grupo) return alert('Seleccione todos los campos obligatorios.');
+
+      dbCargaDocente.push({
+        id: Date.now(),
+        ciclo: cicloSel,
+        docenteKey,
+        grado,
+        asignatura,
+        grupo
+      });
+
+      guardarTodoEnMemoria();
+      alert('¡Asignación de carga horaria guardada con éxito!');
+      renderizarTablaCargaHoraria();
+    }
+
+    function renderizarTablaCargaHoraria() {
+      const cicloSel = window.configCicloSeleccionado || cicloActivo;
+      const container = document.getElementById('contenedorTablaCargaHoraria');
+      if (!container) return;
+
+      const asignaciones = dbCargaDocente.filter(c => c.ciclo === cicloSel);
+      if (asignaciones.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-4">No hay asignaciones registradas para este ciclo.</p>';
+        return;
+      }
+
+      let html = `
+        <table class="w-full text-left border">
+          <thead class="bg-gray-100 font-bold">
+            <tr>
+              <th class="p-2 border">Docente</th>
+              <th class="p-2 border">Asignatura</th>
+              <th class="p-2 border text-center">Grado / Grupo</th>
+              <th class="p-2 border text-center">Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      asignaciones.forEach(item => {
+        const docenteObj = dbDocentesUsers[item.docenteKey] || { nombre: item.docenteKey };
+        html += `
+          <tr>
+            <td class="p-2 border font-medium">${docenteObj.nombre}</td>
+            <td class="p-2 border font-bold text-red-800">${item.asignatura}</td>
+            <td class="p-2 border text-center font-bold">${item.grado}° Grado (${item.grupo})</td>
+            <td class="p-2 border text-center">
+              <button onclick="eliminarCargaHoraria(${item.id})" class="bg-red-700 text-white px-2 py-1 rounded text-[10px] font-bold">🗑️ Borrar</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    function eliminarCargaHoraria(id) {
+      if (!confirm('¿Desea eliminar esta asignación de carga horaria?')) return;
+      dbCargaDocente = dbCargaDocente.filter(c => c.id !== id);
+      guardarTodoEnMemoria();
+      renderizarTablaCargaHoraria();
+    }
+
+    // --- GESTIÓN DE CICLOS Y GRUPOS MASIVOS ---
+    function agregarNuevoCiclo() {
+      const val = document.getElementById('nuevoCicloInput').value.trim();
+      if (!val) return alert('Ingrese un ciclo escolar.');
+      if (!ciclosDisponibles.includes(val)) {
+        ciclosDisponibles.push(val);
+        dbGruposConfig[val] = { '1': [], '2': [], '3': [] };
+        guardarTodoEnMemoria();
+        alert(`¡Ciclo ${val} agregado con éxito!`);
+        document.getElementById('nuevoCicloInput').value = '';
+        switchConfigSubTab('subCiclo');
+      } else {
+        alert('El ciclo ya existe.');
+      }
+    }
+
+    function guardarCicloConfig() {
+      const val = document.getElementById('selectCicloGlobal').value;
+      if (!val) return;
+      cicloActivo = val;
+      guardarTodoEnMemoria();
+      cargarMembreteEnHeader();
+      alert(`¡Ciclo escolar activo actualizado a ${cicloActivo}!`);
+    }
+
+    function renderizarGruposConfig() {
+      const cicloSel = window.configCicloSeleccionado || cicloActivo;
+      const container = document.getElementById('listaGruposConfigContainer');
+      if (!container) return;
+      
+      const cfg = dbGruposConfig[cicloSel] || { '1': [], '2': [], '3': [] };
+      let html = '';
+      let totalGrupos = 0;
+
+      ['1', '2', '3'].forEach(grado => {
+        const lista = cfg[grado] || [];
+        lista.forEach(gName => {
+          totalGrupos++;
+          html += `
+            <div class="bg-red-50 border border-red-200 px-3 py-1 rounded-lg flex items-center gap-2 font-bold text-red-800">
+              <span>${gName}</span>
+              <button onclick="eliminarGrupoOficial('${cicloSel}', '${grado}', '${gName}')" class="text-red-600 hover:text-red-900 font-bold ml-1" title="Eliminar">×</button>
+            </div>
+          `;
+        });
+      });
+
+      container.innerHTML = totalGrupos ? html : '<p class="text-gray-400 italic">No hay grupos guardados para este ciclo.</p>';
+    }
+
+    function guardarGruposMasivos(ciclo) {
+      if (!dbGruposConfig[ciclo]) dbGruposConfig[ciclo] = { '1': [], '2': [], '3': [] };
+      
+      ['1', '2', '3'].forEach(grado => {
+        let seleccionados = [];
+        ['A', 'B', 'C'].forEach(letra => {
+          const chk = document.getElementById(`chk_${grado}_${letra}`);
+          if (chk && chk.checked) seleccionados.push(`${grado}°${letra}`);
+        });
+        dbGruposConfig[ciclo][grado] = seleccionados;
+      });
+
+      guardarTodoEnMemoria();
+      alert(`¡Grupos guardados correctamente para el ciclo ${ciclo}!`);
+      renderizarGruposConfig();
+    }
+
+    function eliminarGrupoOficial(ciclo, grado, nombreGrupo) {
+      if (!confirm(`¿Desea eliminar el grupo ${nombreGrupo}?`)) return;
+      dbGruposConfig[ciclo][grado] = dbGruposConfig[ciclo][grado].filter(g => g !== nombreGrupo);
+      guardarTodoEnMemoria();
+      renderizarGruposConfig();
+    }
+
+    // --- GESTIÓN DE ASIGNATURAS ---
+    function renderizarAsignaturasConfig() {
+      const container = document.getElementById('contenedorAsignaturasPorGrado');
+      if (!container) return;
+
+      let html = '';
+      ['1', '2', '3'].forEach(grado => {
+        const lista = asignaturasPorGrado[grado] || [];
+        html += `
+          <div class="bg-white p-4 rounded-xl border space-y-2">
+            <h5 class="font-bold text-red-800 uppercase border-b pb-1">${grado}° Grado</h5>
+            <div class="space-y-1.5 max-h-48 overflow-y-auto">
+        `;
+        if (lista.length === 0) {
+          html += `<p class="text-gray-400 text-center py-2">Sin asignaturas.</p>`;
+        } else {
+          lista.forEach((asig, index) => {
+            html += `
+              <div class="flex items-center justify-between bg-gray-50 p-1.5 rounded border text-xs">
+                <span class="font-medium text-gray-700">${asig}</span>
+                <div class="flex gap-1">
+                  <button onclick="editarAsignatura('${grado}', ${index})" class="text-blue-600 hover:text-blue-800 font-bold px-1" title="Editar">✏️</button>
+                  <button onclick="eliminarAsignatura('${grado}', ${index})" class="text-red-600 hover:text-red-800 font-bold px-1" title="Borrar">🗑️</button>
+                </div>
+              </div>
+            `;
+          });
+        }
+        html += `</div></div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    function agregarAsignatura() {
+      const grado = document.getElementById('nuevaAsigGrado').value;
+      const nombre = document.getElementById('nuevaAsigNombre').value.trim();
+      if (!nombre) return alert('Ingrese el nombre de la asignatura.');
+
+      if (!asignaturasPorGrado[grado]) asignaturasPorGrado[grado] = [];
+      if (!asignaturasPorGrado[grado].includes(nombre)) {
+        asignaturasPorGrado[grado].push(nombre);
+        guardarTodoEnMemoria();
+        document.getElementById('nuevaAsigNombre').value = '';
+        renderizarAsignaturasConfig();
+        alert('¡Asignatura agregada con éxito!');
+      } else {
+        alert('La asignatura ya existe en este grado.');
+      }
+    }
+
+    function editarAsignatura(grado, index) {
+      const actual = asignaturasPorGrado[grado][index];
+      const nuevo = prompt(`Editar nombre de asignatura para ${grado}° Grado:`, actual);
+      if (nuevo && nuevo.trim()) {
+        asignaturasPorGrado[grado][index] = nuevo.trim();
+        guardarTodoEnMemoria();
+        renderizarAsignaturasConfig();
+      }
+    }
+
+    function eliminarAsignatura(grado, index) {
+      const asig = asignaturasPorGrado[grado][index];
+      if (!confirm(`¿Está seguro de eliminar la asignatura "${asig}"?`)) return;
+      asignaturasPorGrado[grado].splice(index, 1);
+      guardarTodoEnMemoria();
+      renderizarAsignaturasConfig();
+    }
+
+    function guardarRangosConfig() {
+      dbRangosConfig.min = parseFloat(document.getElementById('rangoMin').value) || 5.0;
+      dbRangosConfig.max = parseFloat(document.getElementById('rangoMax').value) || 6.9;
+      guardarTodoEnMemoria();
+      alert('¡Rangos de calificación guardados con éxito!');
+    }
+
+    // --- CREDENCIALES ---
+    function guardarOActualizarUsuario() {
+      const editKey = document.getElementById('editKeyUser').value.trim().toLowerCase();
+      const clave = document.getElementById('nuevoUsuarioClave').value.trim().toLowerCase();
+      const nombre = document.getElementById('nuevoUsuarioNombre').value.trim();
+      const rol = document.getElementById('nuevoUsuarioRol').value;
+      const pass = document.getElementById('nuevoUsuarioPass').value.trim();
+
+      if (!clave || !nombre || !pass) return alert('Complete todos los campos.');
+
+      if (editKey && editKey !== clave) delete dbDocentesUsers[editKey];
+      dbDocentesUsers[clave] = { nombre, pass, role: rol };
+      guardarTodoEnMemoria();
+      alert(`¡Usuario "${nombre}" guardado con éxito!`);
+      cancelarEdicionUsuario();
+      renderizerUsuariosLista();
+    }
+
+    function editarUsuario(uKey) {
+      const usr = dbDocentesUsers[uKey];
+      if (!usr) return;
+      document.getElementById('editKeyUser').value = uKey;
+      document.getElementById('nuevoUsuarioClave').value = uKey;
+      document.getElementById('nuevoUsuarioNombre').value = usr.nombre;
+      document.getElementById('nuevoUsuarioRol').value = usr.role;
+      document.getElementById('nuevoUsuarioPass').value = usr.pass;
+
+      document.getElementById('tituloFormUsuario').innerText = `✏️ Editando Usuario: ${uKey}`;
+      document.getElementById('btnGuardarUser').innerText = "💾 Actualizar Usuario";
+      document.getElementById('btnCancelarUser').classList.remove('hidden');
+    }
+
+    function cancelarEdicionUsuario() {
+      document.getElementById('editKeyUser').value = '';
+      document.getElementById('nuevoUsuarioClave').value = '';
+      document.getElementById('nuevoUsuarioNombre').value = '';
+      document.getElementById('nuevoUsuarioPass').value = '';
+      document.getElementById('tituloFormUsuario').innerText = "👤 Registrar Nuevo Usuario";
+      document.getElementById('btnGuardarUser').innerText = "💾 Guardar Usuario";
+      document.getElementById('btnCancelarUser').classList.add('hidden');
+    }
+
+    function verCredencialesUsuario(uKey) {
+      const usr = dbDocentesUsers[uKey];
+      if (!usr) return;
+      alert(`🔑 CREDENCIALES:\n\nUsuario: ${uKey}\nContraseña: ${usr.pass}\nNombre: ${usr.nombre}\nRol: ${usr.role}`);
+    }
+
+    function eliminarUsuario(uKey) {
+      if (uKey === 'admin') return alert('⚠️ No se puede eliminar la cuenta de administrador principal.');
+      if (!confirm(`¿Eliminar al usuario "${uKey}"?`)) return;
+      delete dbDocentesUsers[uKey];
+      guardarTodoEnMemoria();
+      renderizerUsuariosLista();
+      alert('¡Usuario eliminado!');
+    }
+
+    function renderizerUsuariosLista() {
+      const container = document.getElementById('contenedorListaUsuarios');
+      if (!container) return;
+      let html = '';
+      for (let u in dbDocentesUsers) {
+        const usr = dbDocentesUsers[u];
+        html += `
+          <div class="bg-gray-50 p-2.5 rounded-lg border flex items-center justify-between gap-2">
+            <div>
+              <span class="font-bold text-gray-800 block">${usr.nombre}</span>
+              <span class="text-[10px] font-semibold text-gray-500">Usuario: <b>${u}</b> | Rol: <b class="uppercase text-red-800">${usr.role}</b></span>
+            </div>
+            <div class="flex gap-1">
+              <button onclick="verCredencialesUsuario('${u}')" class="bg-amber-600 text-white px-2 py-1 rounded text-[10px] font-bold">👁️</button>
+              <button onclick="editarUsuario('${u}')" class="bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold">✏️</button>
+              ${u !== 'admin' ? `<button onclick="eliminarUsuario('${u}')" class="bg-red-700 text-white px-2 py-1 rounded text-[10px] font-bold">🗑️</button>` : ''}
+            </div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+
+    // --- PADRÓN Y REPORTES ---
+    function cargarPadronGrupo() {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      const g = document.getElementById('padronGrupoSel').value;
+      const ws = document.getElementById('padronWorkspace');
+      if (!g) { ws.classList.add('hidden'); return; }
+      ws.classList.remove('hidden');
+      const grado = g.charAt(0), grupo = g.split('°')[1];
+      const alumnos = dbAlumnos.filter(a => a.ciclo === cicloSel && a.grado === grado && a.grupo === grupo);
+      let html = `<table class="w-full text-left text-xs border"><thead class="bg-gray-100 font-bold"><tr><th class="p-2 border w-10 text-center">#</th><th class="p-2 border">Nombre del Alumno</th></tr></thead><tbody id="tbodyPadron">`;
+      if (alumnos.length === 0) html += `<tr><td class="p-2 border text-center">1</td><td class="p-2 border"><input type="text" class="p-1 border rounded input-padron font-semibold w-full" placeholder="Nombre completo..."></td></tr>`;
+      else alumnos.forEach((a, i) => html += `<tr><td class="p-2 border text-center font-bold">${i+1}</td><td class="p-2 border"><input type="text" value="${a.name}" class="p-1 border rounded input-padron font-semibold w-full"></td></tr>`);
+      document.getElementById('tablaPadronContainer').innerHTML = html + '</tbody></table>';
+    }
+
+    function agregarFilaPadron() {
+      const tbody = document.getElementById('tbodyPadron');
+      if (tbody) tbody.insertAdjacentHTML('beforeend', `<tr><td class="p-2 border text-center font-bold">${tbody.querySelectorAll('tr').length+1}</td><td class="p-2 border"><input type="text" class="p-1 border rounded input-padron font-semibold w-full" placeholder="Nombre completo..."></td></tr>`);
+    }
+
+    function guardarPadron() {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      const g = document.getElementById('padronGrupoSel').value;
+      if (!g) return;
+      const grado = g.charAt(0), grupo = g.split('°')[1];
+      dbAlumnos = dbAlumnos.filter(a => !(a.ciclo === cicloSel && a.grado === grado && a.grupo === grupo));
+      document.querySelectorAll('.input-padron').forEach((inp, idx) => {
+        if (inp.value.trim()) dbAlumnos.push({ id: Date.now() + idx, ciclo: cicloSel, grado, grupo, name: inp.value.trim() });
+      });
+      guardarTodoEnMemoria();
+      alert(`¡Padrón guardado para el ciclo ${cicloSel}!`);
+      actualizarAlumnosTS();
+    }
+
+    function generarReporteGenerico(modo) {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      const res = document.getElementById('resReporte');
+      res.classList.remove('hidden');
+      const grado = document.getElementById('repGrado').value;
+      const grupo = document.getElementById('repGrupo').value;
+
+      let filtrados = dbAlumnos.filter(a => {
+        if (a.ciclo !== cicloSel) return false;
+        if (grado !== 'todos' && a.grado !== grado) return false;
+        if (grupo !== 'todos' && a.grupo !== grupo) return false;
+        return true;
+      });
+
+      let html = `<div class="font-bold text-red-800 mb-2 border-b pb-1">Reporte (Ciclo: ${cicloSel}, Grado: ${grado}, Grupo: ${grupo}) - Total: ${filtrados.length}</div>`;
+      if (filtrados.length === 0) {
+        html += `<p class="text-gray-500">No hay alumnos registrados para este filtro.</p>`;
+      } else {
+        html += `<table class="w-full text-left border"><thead class="bg-gray-100"><tr><th class="p-1 border">#</th><th class="p-1 border">Alumno</th><th class="p-1 border text-center">Grado/Grupo</th></tr></thead><tbody>`;
+        filtrados.forEach((a, i) => {
+          html += `<tr><td class="p-1 border text-center">${i+1}</td><td class="p-1 border">${a.name}</td><td class="p-1 border text-center">${a.grado}°${a.grupo}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+      }
+      res.innerHTML = html;
+    }
+
+    function exportarReporteExcel() {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      const grado = document.getElementById('repGrado').value;
+      const grupo = document.getElementById('repGrupo').value;
+      let filtrados = dbAlumnos.filter(a => {
+        if (a.ciclo !== cicloSel) return false;
+        if (grado !== 'todos' && a.grado !== grado) return false;
+        if (grupo !== 'todos' && a.grupo !== grupo) return false;
+        return true;
+      });
+      if (filtrados.length === 0) return alert('No hay datos.');
+      let csv = "No,Nombre,Grado,Grupo,Ciclo\n";
+      filtrados.forEach((a, i) => { csv += `${i+1},"${a.name}",${a.grado},${a.grupo},${a.ciclo}\n`; });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `Reporte_${cicloSel}.csv`; a.click();
+    }
+
+    function imprimirReportePDF() {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      generarReporteGenerico('vista');
+      const area = document.getElementById('areaImpresion');
+      area.innerHTML = `<div style="text-align:center;"><h2>${dbMembrete.nombreEscuela}</h2><p>Ciclo: ${cicloSel}</p></div>${document.getElementById('resReporte').innerHTML}`;
+      window.print();
+    }
+
+    function generarConstanciaPDF() {
+      const cicloSel = window.ceCicloSeleccionado || cicloActivo;
+      const nombre = document.getElementById('docConstanciaNombre').value.trim();
+      const gradoGrupo = document.getElementById('docConstanciaGradoGrupo').value.trim();
+      const fecha = document.getElementById('docConstanciaFecha').value;
+      if (!nombre) return alert('Seleccione o ingrese el nombre del alumno.');
+
+      document.getElementById('areaImpresion').innerHTML = `
+        <div style="font-family: Arial; padding: 40px; border: 2px solid #800000;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            ${dbMembrete.logoIzq ? `<img src="${dbMembrete.logoIzq}" style="height:80px;">` : ''}
+            <div style="text-align:center; flex:1;">
+              <h1 style="color:#800000; font-size:20px; font-weight:bold; margin:0;">${dbMembrete.nombreEscuela}</h1>
+              <p style="font-size:12px; margin:2px 0;">${dbMembrete.lema} | CCT: ${dbMembrete.cct}</p>
+              <p style="font-size:12px; margin:0;">${dbMembrete.ubicacion}</p>
+            </div>
+            ${dbMembrete.logoDer ? `<img src="${dbMembrete.logoDer}" style="height:80px;">` : ''}
+          </div>
+          <hr style="border:1px solid #800000; margin-bottom:30px;">
+          <h2 style="text-align:center; font-size:18px; font-weight:bold; margin-bottom:30px;">CONSTANCIA DE ESTUDIOS</h2>
+          <p style="font-size:14px; line-height:1.8; text-align:justify;">
+            El que suscribe, Director de la <b>${dbMembrete.nombreEscuela}</b>, hace constar por medio de la presente que el alumno(a):
+          </p>
+          <p style="text-align:center; font-size:16px; font-weight:bold; margin:25px 0; text-transform:uppercase; color:#800000;">
+            ${nombre}
+          </p>
+          <p style="font-size:14px; line-height:1.8; text-align:justify;">
+            Se encuentra debidamente inscrito(a) en este plantel educativo cursando el <b>${gradoGrupo}</b> correspondiente al <b>Ciclo Escolar ${cicloSel}</b>.
+          </p>
+          <p style="font-size:14px; line-height:1.8; text-align:justify; margin-top:20px;">
+            A petición de parte interesada y para los fines legales o administrativos que al interesado convengan, se extiende la presente en ${dbMembrete.ubicacion} con fecha de <b>${fecha}</b>.
+          </p>
+          <div style="text-align:center; margin-top:90px;">
+            <p style="font-weight:bold; border-top:1px solid #000; display:inline-block; padding-top:5px; width:250px;">
+              ${dbMembrete.director}<br><span style="font-weight:normal; font-size:12px;">Director del Plantel</span>
+            </p>
+          </div>
+        </div>
+      `;
+      window.print();
+    }
+
+    function generarDocumentoTSPDF() {
+      const tipo = document.getElementById('tsDocTipo').value;
+      const nombre = document.getElementById('tsAlumnoNombre').value.trim();
+      const gradoGrupo = document.getElementById('tsAlumnoGradoGrupo').value.trim();
+      if (!nombre) return alert('Seleccione o ingrese el nombre del alumno.');
+      document.getElementById('areaImpresion').innerHTML = `
+        <div style="font-family: Arial; padding: 40px; border: 2px solid #b45309;">
+          <h1 style="text-align:center; color:#b45309;">${dbMembrete.nombreEscuela}</h1>
+          <h2 style="text-align:center;">${tipo === 'citatorio' ? 'CITATORIO A PADRE DE FAMILIA' : 'CARTA DE CONDUCTA'}</h2>
+          <p>Alumno: <b>${nombre}</b> (${gradoGrupo}).</p>
+        </div>
+      `;
+      window.print();
+    }
+
+    let tempLogoIzq = '', tempLogoDer = '';
+    function convertirLogoABase64(input, tipo) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => { if (tipo === 'izq') tempLogoIzq = e.target.result; else tempLogoDer = e.target.result; };
+      reader.readAsDataURL(file);
+    }
+
+    function guardarMembreteConfig() {
+      dbMembrete.nombreEscuela = document.getElementById('mbNombre').value.trim();
+      dbMembrete.lema = document.getElementById('mbLema').value.trim();
+      dbMembrete.cct = document.getElementById('mbCct').value.trim();
+      dbMembrete.turno = document.getElementById('mbTurno').value.trim();
+      dbMembrete.ubicacion = document.getElementById('mbUbicacion').value.trim();
+      if (tempLogoIzq) dbMembrete.logoIzq = tempLogoIzq;
+      if (tempLogoDer) dbMembrete.logoDer = tempLogoDer;
+      
+      guardarTodoEnMemoria();
+      cargarMembreteEnHeader();
+      alert('¡Membrete y logotipos guardados permanentemente!');
+    }
+
+    function exportarBaseDeDatosTotal() {
+      const respaldo = {
+        ciclo: cicloActivo, ciclosDisponibles, gruposConfig: dbGruposConfig,
+        asignaturas: asignaturasPorGrado, alumnos: dbAlumnos, usuarios: dbDocentesUsers, membrete: dbMembrete, incidencias: dbIncidencias, cargaDocente: dbCargaDocente
+      };
+      const blob = new Blob([JSON.stringify(respaldo, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `Respaldo_EST118_${new Date().toISOString().slice(0,10)}.json`; a.click();
+    }
+
+    function restaurarBaseDeDatosTotal() {
+      const file = document.getElementById('inputArchivoRestaurar').files[0];
+      if (!file) return alert('Seleccione un archivo.');
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const d = JSON.parse(e.target.result);
+          if (d.usuarios) {
+            cicloActivo = d.ciclo || cicloActivo;
+            ciclosDisponibles = d.ciclosDisponibles || ciclosDisponibles;
+            dbGruposConfig = d.gruposConfig || dbGruposConfig;
+            asignaturasPorGrado = d.asignaturas || asignaturasPorGrado;
+            dbAlumnos = d.alumnos || [];
+            dbDocentesUsers = d.usuarios || dbDocentesUsers;
+            dbMembrete = d.membrete || dbMembrete;
+            dbIncidencias = d.incidencias || [];
+            dbCargaDocente = d.cargaDocente || [];
+            
+            guardarTodoEnMemoria();
+            cargarMembreteEnHeader();
+            renderPanelDirectivo();
+            alert('¡Restauración exitosa y guardada permanentemente!');
+          }
+        } catch(err) { alert('Error al procesar archivo.'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function renderPanelDocente() {
+      document.getElementById('mainContent').innerHTML = `<div class="p-4 text-center"><h3 class="font-bold text-lg text-red-800">Panel Docente</h3><button onclick="logout()" class="mt-3 px-4 py-2 bg-gray-700 text-white rounded-xl text-xs font-bold">Salir</button></div>`;
+    }
+
+    function logout() { currentUser = null; location.reload(); }
+  </script>
+</body>
+</html>
